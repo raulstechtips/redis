@@ -9,22 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Compile upstream Redis in a non-root image with TLS support ([DEVSECOPS-190](https://raulstechtips.atlassian.net/browse/DEVSECOPS-190)).
-- Add standalone and Sentinel chart modes, persistent data and Sentinel state,
-  authentication sources, internal-CA TLS, restricted pod security, NetworkPolicy,
-  and optional TCP ingress ([DEVSECOPS-190](https://raulstechtips.atlassian.net/browse/DEVSECOPS-190)).
-- Add custom unit tests, Helm tests, and branch-based Jenkins deployment ([DEVSECOPS-190](https://raulstechtips.atlassian.net/browse/DEVSECOPS-190)).
-
-### Changed
-
-- Publish the custom source-built image to GHCR and use it for all deployments.
-- Name data pods `redis-node-N` and support dependency-chart naming and values.
-- Resolve credentials in order: Infisical, existing Secret, generated password.
-- Enable internal-CA TLS by default and move development overrides into `charts/`.
-
-### Fixed
-
-- Keep startup scripts and configuration defaults in the custom image rather
-  than duplicating and mounting them from the chart ([DEVSECOPS-190](https://raulstechtips.atlassian.net/browse/DEVSECOPS-190)).
+- Add a custom source-built Redis image with baked startup scripts, a non-root
+  runtime, and GHCR publishing ([DEVSECOPS-190](https://raulstechtips.atlassian.net/browse/DEVSECOPS-190)).
+- Add a Helm chart for standalone and Sentinel deployments, including dependency-chart
+  use, persistence, credential sources, internal-CA TLS, restricted pod security,
+  NetworkPolicy, and optional TCP ingress ([DEVSECOPS-190](https://raulstechtips.atlassian.net/browse/DEVSECOPS-190)).
+- Add custom unit tests, Helm tests, operating documentation, and a Jenkins pipeline
+  that builds, publishes, and deploys Redis ([DEVSECOPS-190](https://raulstechtips.atlassian.net/browse/DEVSECOPS-190)).
 
 [Unreleased]: https://github.com/raulstechtips/redis/commits/main
