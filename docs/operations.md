@@ -4,7 +4,8 @@
 
 First create the namespace and select the credential source described in
 configuration.md. Default TLS requires cert-manager and the internal-CA issuer.
-The chart can use the upstream image without building a custom image.
+Use a published custom image from GHCR. The source values pin a known build;
+Jenkins stamps each packaged chart with the image produced by that pipeline.
 Run Helm from the chart directory:
 
 ```sh

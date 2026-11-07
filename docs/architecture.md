@@ -18,6 +18,11 @@ of the installed OS packages. No root entrypoint or ownership repair is needed.
 Kubernetes supplies writable `/data` and `/run/redis` mounts. The root filesystem
 is read-only, all capabilities are dropped, and no Kubernetes API token is mounted.
 
+The startup scripts and configuration defaults live only under `src/` and are
+baked into the custom image. The chart passes environment settings and the
+`redis` or `sentinel` argument to the image entrypoint. Credentials and TLS
+certificates are mounted separately; runtime scripts are not supplied by Helm.
+
 To update Redis, update the source version/checksum and chart `appVersion`
 together. Verify the checksum against the upstream redis-hashes repository.
 To update runtime libraries, rebuild from the reviewed base and distribution

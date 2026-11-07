@@ -3,17 +3,12 @@ fullnameOverride: ""
 # Helm supplies global values to dependencies. No global settings are required here.
 global: {}
 image:
-  # Latest stable upstream release verified on 2026-11-07. Development overrides
-  # select our custom image; the chart works with either image.
-  repository: docker.io/library/redis
-  tag: "8.10.3@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53"
+  # Our custom image contains the Redis binaries, startup scripts and defaults.
+  # This is a published custom build. CI replaces the tag with its own version
+  # and digest before packaging and deployment.
+  repository: ghcr.io/raulstechtips/redis
+  tag: "0.1.0-feature-devsecops-190-74618ea-8eb3efb-2@sha256:09b856349ebfad444730cb9d491d68b7440c804ae549de0b4c1076a6186cca91"
   pullPolicy: IfNotPresent
-  # CI writes built.tag without changing the published chart's upstream default.
-  # Before an image is built, rendering uses the upstream image for validation.
-  useBuiltImage: false
-  built:
-    repository: ghcr.io/raulstechtips/redis
-    tag: ""
 imagePullSecrets: []
 clusterDomain: cluster.local
 

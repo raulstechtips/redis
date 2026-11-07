@@ -13,13 +13,7 @@
       "properties": {
         "repository": {"type": "string", "minLength": 1},
         "tag": {"type": "string", "minLength": 1},
-        "pullPolicy": {"enum": ["Always", "IfNotPresent", "Never"]},
-        "useBuiltImage": {"type": "boolean"},
-        "built": {
-          "type": "object", "required": ["repository", "tag"],
-          "properties": {"repository": {"type": "string", "minLength": 1}, "tag": {"type": "string"}},
-          "additionalProperties": false
-        }
+        "pullPolicy": {"enum": ["Always", "IfNotPresent", "Never"]}
       },
       "additionalProperties": false
     },

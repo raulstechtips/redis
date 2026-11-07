@@ -1,5 +1,3 @@
 mode: sentinel
-image:
-  useBuiltImage: true
 redis:
   replicas: 1

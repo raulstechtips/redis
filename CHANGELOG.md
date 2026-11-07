@@ -17,11 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Use the latest stable upstream image by default and the GHCR custom image for development.
+- Publish the custom source-built image to GHCR and use it for all deployments.
 - Name data pods `redis-node-N` and support dependency-chart naming and values.
 - Resolve credentials in order: Infisical, existing Secret, generated password.
 - Enable internal-CA TLS by default and move development overrides into `charts/`.
 
 ### Fixed
+
+- Keep startup scripts and configuration defaults in the custom image rather
+  than duplicating and mounting them from the chart ([DEVSECOPS-190](https://raulstechtips.atlassian.net/browse/DEVSECOPS-190)).
 
 [Unreleased]: https://github.com/raulstechtips/redis/commits/main

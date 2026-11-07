@@ -7,7 +7,7 @@ project-config:
     dockerfile: src/Dockerfile
     context: src
   test-command: sh tests/unit/run.sh
-  helm-image-tag-path: .image.built.tag
+  helm-image-tag-path: .image.tag
   helm-overrides:
     - overrides.yaml
   pipeline-steps:

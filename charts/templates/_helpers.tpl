@@ -27,14 +27,6 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | quote }}
 {{- end -}}
 {{- end -}}
 
-{{- define "redis.image" -}}
-{{- if and .Values.image.useBuiltImage .Values.image.built.tag -}}
-{{- printf "%s:%s" .Values.image.built.repository .Values.image.built.tag -}}
-{{- else -}}
-{{- printf "%s:%s" .Values.image.repository .Values.image.tag -}}
-{{- end -}}
-{{- end -}}
-
 {{- define "redis.tlsSecret" -}}
 {{- default (printf "%s-tls" (include "redis.fullname" .)) .Values.tls.existingSecret -}}
 {{- end -}}

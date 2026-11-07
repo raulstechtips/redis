@@ -1,8 +1,8 @@
 # Redis
 
 A custom non-root Redis image and Helm chart. The image compiles upstream Redis
-8.10.3 with TLS support. The chart defaults to the verified latest stable upstream
-image and can instead use the custom image built by this repository.
+8.10.3 with TLS support. The chart uses this repository's custom image,
+published to `ghcr.io/raulstechtips/redis`.
 There are no Helm chart dependencies. Default TLS requires the installed
 cert-manager controller and the internal-CA ClusterIssuer.
 
@@ -20,7 +20,7 @@ There is no primary-and-replica mode without Sentinel.
 ## Repository
 
 - `src/`: multi-stage image, runtime defaults, and startup/probe scripts.
-- `charts/`: Helm chart, packaged runtime files, schema, unit tests, and CI values.
+- `charts/`: Helm chart, schema, unit tests, and CI values.
 - `tests/unit/`: deterministic tests of the custom shell logic, without a live cluster.
 - `charts/overrides.yaml`: development deployment settings.
 - `project-pipeline-config.yaml`: image/chart publishing and direct Helm deployment.
@@ -63,11 +63,10 @@ Helm unittest is a developer/CI tool, not a chart dependency.
 There is no automated live integration suite. Deployment, persistence, and
 failover are checked manually during development.
 
-`src/` is authoritative for scripts and runtime configuration. After changing
-those files, run `sh scripts/sync-chart-files.sh` and commit the packaged
-`charts/files/` copies. Unit tests compare the shipped files with their sources.
-The chart mounts them into either image, so upstream Redis does not need our
-custom entrypoint baked into its image.
+`src/` owns the startup scripts and runtime defaults. Docker builds them into
+the image. The chart supplies deployment settings, credentials and certificates;
+it uses the image entrypoint and does not mount over the image's scripts or
+configuration defaults. A runtime code change requires a new image build.
 
 ## Use as a dependency
 

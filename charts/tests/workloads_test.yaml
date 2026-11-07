@@ -94,21 +94,16 @@ tests:
               items:
                 - key: redis-password
                   path: password
-  - it: keeps the upstream default even when the chart contains a built image tag
+  - it: uses the custom GHCR image with the supplied build tag
     set:
-      image.built.tag: 0.1.0-test
-    asserts:
-      - matchRegex:
-          path: spec.template.spec.containers[0].image
-          pattern: '^docker.io/library/redis:8\.10\.3@sha256:'
-  - it: selects the CI image only when requested
-    set:
-      image.useBuiltImage: true
-      image.built.tag: 0.1.0-test
+      image.tag: 0.1.0-test
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
           value: ghcr.io/raulstechtips/redis:0.1.0-test
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: [redis]
   - it: mounts TLS credentials when enabled
     set:
       tls.enabled: true

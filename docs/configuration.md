@@ -75,8 +75,6 @@ two data pods and three Sentinels.
 
 ```yaml
 mode: sentinel
-image:
-  useBuiltImage: true
 redis:
   replicas: 1
 ```
@@ -191,13 +189,12 @@ Sentinel's discovery Service is not a complete external HA connection design.
 
 ## Image
 
-`image.repository` and `image.tag` default to the verified latest stable upstream
-Redis release, pinned by digest. Redis and Sentinel use the same image. The chart
-mounts its runtime scripts and configuration, so the upstream image works without
-our custom image.
+`image.repository` is `ghcr.io/raulstechtips/redis`, our custom source-built image.
+Redis and Sentinel use the same image, including its baked startup scripts and
+configuration defaults. The chart uses the image's entrypoint.
 
-Jenkins writes its `<version>@<digest>` into `image.built.tag`. The development
-override sets `image.useBuiltImage: true`, selecting `image.built.repository`
-(GHCR) once that tag is populated. Before the build, rendering uses the upstream
-image. The packaged chart still defaults to upstream unless a consumer selects
-the built image. Set `imagePullSecrets` if the registry requires authentication.
+The source values pin a published custom image. Jenkins replaces `image.tag`
+with its matching `<version>@<digest>` before packaging and deployment. There
+is no separate image-selection mode. For manual deployments, select a published
+custom build through `image.tag`. Set `imagePullSecrets` if the registry requires
+authentication.

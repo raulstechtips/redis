@@ -32,8 +32,6 @@ spec:
         app.kubernetes.io/name: {{ include "redis.name" $root }}
         app.kubernetes.io/instance: {{ $root.Release.Name }}
         app.kubernetes.io/component: {{ $role }}
-      annotations:
-        checksum/runtime: {{ include (print $root.Template.BasePath "/runtime-config.yaml") $root | sha256sum }}
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
@@ -62,9 +60,8 @@ spec:
       {{- end }}
       containers:
         - name: {{ $role }}
-          image: {{ include "redis.image" $root | quote }}
+          image: {{ printf "%s:%s" $root.Values.image.repository $root.Values.image.tag | quote }}
           imagePullPolicy: {{ $root.Values.image.pullPolicy }}
-          command: ["/bin/sh", "/usr/local/lib/redis/entrypoint.sh"]
           args: [{{ $role | quote }}]
           securityContext:
             allowPrivilegeEscalation: false
@@ -133,12 +130,6 @@ spec:
           volumeMounts:
             - name: {{ $claim }}
               mountPath: /data
-            - name: scripts
-              mountPath: /usr/local/lib/redis
-              readOnly: true
-            - name: config
-              mountPath: /etc/redis
-              readOnly: true
             - name: runtime
               mountPath: /run/redis
             - name: auth
@@ -150,23 +141,6 @@ spec:
               readOnly: true
             {{- end }}
       volumes:
-        - name: scripts
-          configMap:
-            name: {{ $name }}-runtime
-            defaultMode: 0555
-            items:
-              {{- range $path, $_ := $root.Files.Glob "files/scripts/*.sh" }}
-              - key: {{ base $path }}
-                path: {{ base $path }}
-              {{- end }}
-        - name: config
-          configMap:
-            name: {{ $name }}-runtime
-            items:
-              - key: redis.conf
-                path: redis.conf
-              - key: sentinel.conf
-                path: sentinel.conf
         - name: runtime
           emptyDir:
             medium: Memory
