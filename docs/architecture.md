@@ -9,6 +9,8 @@ adding a bundled jemalloc build. TLS uses the distribution OpenSSL libraries.
 
 The build uses `-O2` without link-time optimization to keep compiler memory use
 bounded on the development workstation and Jenkins agents.
+It builds the Redis core directly under `src/`, without the optional search,
+JSON, time-series, or Bloom module toolchains.
 
 The image runs as UID/GID 10001 from process start. It includes Redis server,
 redis-cli, the upstream license, and `/usr/share/redis/packages.txt`, an inventory
@@ -26,7 +28,7 @@ digest and package inventory when reviewing an image update.
 
 ## Standalone
 
-One StatefulSet pod owns one PVC. The `redis-redis` Service routes directly to it
+One StatefulSet pod owns one PVC. The `redis` Service routes directly to it
 when the Helm release is named `redis`. Persistence uses AOF with a one-second
 fsync interval. Redis loads its data back into memory after restart.
 
@@ -84,16 +86,19 @@ are a separate operational responsibility; replicas are not backups.
 
 ## Network and credentials
 
-One existing Secret supplies a shared password to Redis and Sentinel. Passwords
+One selected Secret supplies a shared password to Redis and Sentinel. The source
+order is Infisical, an existing Secret, then a Helm-generated credential. Passwords
 are read from mounted files, not passed as command-line arguments. Runtime config
 files are written with a restrictive umask. Credential changes require a planned
 restart; rotation is not performed automatically by this chart.
 
-Ingress permits release members and explicitly configured client peers. Egress
-permits release members and cluster DNS. No public service, ingress route, or
-Kubernetes RBAC is required.
+Ingress permits same-namespace release members, including parent application
+pods, and explicitly configured client peers. Egress permits only this Redis
+dependency's members and cluster DNS. Optional TCP ingress adds the configured
+Traefik peers. No Kubernetes RBAC or public route is required for normal use.
 
-TLS is optional and uses an existing certificate Secret. Plaintext ports are
+TLS is enabled by default. cert-manager issues a leaf certificate from the
+internal CA, or the operator can supply an existing TLS Secret. Plaintext ports are
 disabled when TLS is enabled. Password authentication remains required. The
 server does not require client certificates; internal clients use the mounted
 certificate for replication and Sentinel communication.

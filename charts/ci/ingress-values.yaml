@@ -1,0 +1,3 @@
+ingressRoute:
+  enabled: true
+  host: redis.dev.raulstechtips.dev

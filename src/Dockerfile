@@ -1,14 +1,14 @@
 FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS build
 
-ARG REDIS_VERSION=8.2.11
-ARG REDIS_SHA256=fba14b77c4bdcb2d5418b6741fc0cdaac4b78bc73eab9b2e5f3c255d597f16fa
+ARG REDIS_VERSION=8.10.3
+ARG REDIS_SHA256=edde778f6bdee7581e42fc139ca9e07e2822212092f7501f99989656e3629d02
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl build-essential libssl-dev pkg-config \
     && curl --fail --show-error --location "https://download.redis.io/releases/redis-${REDIS_VERSION}.tar.gz" -o /tmp/redis.tar.gz \
     && echo "${REDIS_SHA256}  /tmp/redis.tar.gz" | sha256sum --check - \
     && mkdir /build \
     && tar -xzf /tmp/redis.tar.gz -C /build --strip-components=1 \
-    && make -C /build -j2 BUILD_TLS=yes MALLOC=libc OPT="-O2" \
+    && make -C /build/src -j2 BUILD_TLS=yes MALLOC=libc OPT="-O2" \
     && strip /build/src/redis-server /build/src/redis-cli
 
 FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc

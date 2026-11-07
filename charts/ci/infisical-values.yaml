@@ -1,0 +1,9 @@
+auth:
+  infisical:
+    enabled: true
+    authRef:
+      name: chart-validation
+      namespace: infisical-secrets-operator
+    projectSlug: chart-validation
+    environmentSlug: dev
+    secretPath: /redis

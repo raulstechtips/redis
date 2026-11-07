@@ -3,11 +3,12 @@
 {{- $roles = append $roles "sentinel" -}}
 {{- end -}}
 {{- range $role := $roles }}
+{{- $component := ternary "node" "sentinel" (eq $role "redis") }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $.Release.Name }}-{{ $role }}-headless
+  name: {{ include "redis.fullname" $ }}-{{ $component }}-headless
   labels:
     {{- include "redis.labels" $ | nindent 4 }}
 spec:
@@ -15,6 +16,7 @@ spec:
   publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/name: {{ include "redis.name" $ }}
     app.kubernetes.io/component: {{ $role }}
   ports:
     - name: {{ $role }}
@@ -25,12 +27,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-{{ .Values.mode | replace "standalone" "redis" }}
+  name: {{ include "redis.fullname" . }}{{ if eq .Values.mode "sentinel" }}-sentinel{{ end }}
   labels:
     {{- include "redis.labels" . | nindent 4 }}
 spec:
   selector:
     app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ include "redis.name" . }}
     app.kubernetes.io/component: {{ .Values.mode | replace "standalone" "redis" }}
   ports:
     - name: client

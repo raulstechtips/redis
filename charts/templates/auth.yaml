@@ -1,0 +1,45 @@
+{{- if .Values.auth.infisical.enabled }}
+apiVersion: secrets.infisical.com/v1beta1
+kind: InfisicalStaticSecret
+metadata:
+  name: {{ include "redis.fullname" . }}
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+spec:
+  infisicalAuthRef:
+    name: {{ required "auth.infisical.authRef.name is required" .Values.auth.infisical.authRef.name | quote }}
+    namespace: {{ required "auth.infisical.authRef.namespace is required" .Values.auth.infisical.authRef.namespace | quote }}
+  syncOptions:
+    refreshInterval: {{ .Values.auth.infisical.refreshInterval }}
+  sources:
+    - projectSlug: {{ required "auth.infisical.projectSlug is required" .Values.auth.infisical.projectSlug | quote }}
+      environmentSlug: {{ required "auth.infisical.environmentSlug is required" .Values.auth.infisical.environmentSlug | quote }}
+      secretPath: {{ required "auth.infisical.secretPath is required" .Values.auth.infisical.secretPath | quote }}
+  targets:
+    - name: {{ include "redis.secret" . }}
+      namespace: {{ .Release.Namespace }}
+      kind: Secret
+      creationPolicy: Owner
+      template:
+        engineVersion: v1
+        data:
+          {{ .Values.auth.passwordKey }}: {{ printf "{{ (index . %q).Value }}" .Values.auth.infisical.secretKey | quote }}
+{{- else if not .Values.auth.existingSecret }}
+{{- $name := include "redis.secret" . }}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace $name }}
+{{- $password := randAlphaNum 64 | b64enc }}
+{{- if $existing }}
+{{- $password = required "The generated Secret exists but lacks auth.passwordKey; restore the original key before upgrading" (index $existing.data .Values.auth.passwordKey) }}
+{{- end }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+type: Opaque
+data:
+  {{ .Values.auth.passwordKey }}: {{ $password | quote }}
+{{- end }}

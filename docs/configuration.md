@@ -1,19 +1,49 @@
 # Configuration
 
-## Required credential
+## Credential source order
 
-Create namespace `redis` before installation. Create a Secret named `redis-auth`
-there with key `password`, using your secret manager or a local protected file:
+Create namespace `redis` before installation. The chart selects exactly one source:
+
+1. If `auth.infisical.enabled` is true, an `InfisicalStaticSecret` synchronizes
+   the requested remote key into `<fullname>-credentials`.
+2. Otherwise, if `auth.existingSecret` is set, mount it without managing it.
+3. Otherwise, generate a 64-character random password in `<fullname>-credentials`.
+   Connected Helm upgrades preserve it with `lookup`; uninstall retains the Secret.
+
+To supply an existing Secret from a protected file:
 
 ```sh
 kubectl -n redis create secret generic redis-auth \
   --from-file=password=/absolute/path/to/password-file
 ```
 
-The file must contain a non-empty single-line password. Do not commit it.
-For a different release, the default name is `<release>-auth`. Set
-`auth.existingSecret` and `auth.passwordKey` to use a different existing Secret.
-The chart never creates or rotates the password.
+The file must contain a non-empty single-line password. Set
+`auth.existingSecret: redis-auth`; change `auth.passwordKey` if needed.
+Do not commit the file. Password rotation requires a planned restart.
+
+For Infisical:
+
+```yaml
+auth:
+  infisical:
+    enabled: true
+    authRef:
+      name: YOUR_EXISTING_AUTH
+      namespace: infisical-secrets-operator
+    projectSlug: YOUR_PROJECT
+    environmentSlug: dev
+    secretPath: /redis
+    secretKey: REDIS_PASSWORD
+```
+
+The operator creates the target Secret before the pods can mount it. Infisical
+takes precedence even when `auth.existingSecret` is also set.
+For Infisical's own bootstrap Redis, use a credential source that is available
+before that Infisical instance starts; avoid a circular startup dependency.
+
+**GitOps:** `lookup` cannot retrieve live Secrets during offline Helm rendering,
+including normal Argo CD rendering. Select Infisical or an existing Secret for
+those deployments; do not use generated credentials for offline GitOps rendering.
 
 ## Main settings
 
@@ -41,10 +71,12 @@ two data pods and three Sentinels.
 
 ## Development override
 
-The root `overrides.yaml` selects:
+`charts/overrides.yaml` selects:
 
 ```yaml
 mode: sentinel
+image:
+  useBuiltImage: true
 redis:
   replicas: 1
 ```
@@ -55,7 +87,9 @@ cache and a Sentinel deployment.
 
 ## Permit application clients
 
-By default, only pods with the same release labels can connect. For clients in
+By default, pods in the same namespace with `app.kubernetes.io/instance` equal
+to the Helm release can connect. This includes a parent chart's application
+pods, not only Redis. For clients in
 one namespace, add a Kubernetes NetworkPolicy peer:
 
 ```yaml
@@ -67,11 +101,19 @@ networkPolicy:
 ```
 
 Add a `podSelector` to that same peer to restrict it further.
+If the client pod also has an egress policy, that policy must permit Redis.
 This is a configuration example, not a migration of an existing application.
 
 ## TLS
 
-Create an existing Secret containing `ca.crt`, `tls.crt`, and `tls.key`, then set:
+TLS is enabled by default. A cert-manager `Certificate` requests a leaf
+certificate from `raulstechtips-internal-ca-issuer` (ClusterIssuer).
+The resulting `<fullname>-tls` Secret contains the leaf certificate, its private
+key, and the CA certificate. Redis never receives the CA's private key.
+The Certificate covers client Service and data/Sentinel pod DNS names.
+
+To use a separately managed certificate, supply a Secret containing `ca.crt`,
+`tls.crt`, and `tls.key`:
 
 ```yaml
 tls:
@@ -79,15 +121,83 @@ tls:
   existingSecret: redis-tls
 ```
 
-The certificate must cover the data and Sentinel pod DNS names used by the
+In this case the chart does not create a Certificate. The supplied certificate
+must cover the data and Sentinel pod DNS names used by the
 release and its client Service names. Mount the trusted CA into application
 clients. Redis continues to use port 6379 and Sentinel port 26379, but those
 ports accept TLS only. Credential files are mounted read-only.
 
+Clients must trust the CA and enable TLS. Password authentication remains
+required; client certificates are not required. `tls.enabled: false` enables
+plaintext Redis and prevents Certificate creation, for consumers such as Harbor.
+
+cert-manager renews the Secret. Redis loads TLS material at process startup;
+plan a controlled rollout after renewal, before the old leaf certificate expires.
+Automatic certificate reload is not provided by this chart.
+
+## Dependency charts
+
+Add `redis` to the parent chart's dependencies, then configure values under its
+name or alias. A dependency alias is included in generated resource names.
+For release `harbor` with dependency name `redis`, data pods are
+`harbor-redis-node-N`; for standalone release `redis`, they are `redis-node-N`.
+Set `fullnameOverride` only when a fixed prefix is needed.
+
+Harbor-style parent values:
+
+```yaml
+redis:
+  tls:
+    enabled: false
+  auth:
+    existingSecret: harbor-redis-secret
+    passwordKey: REDIS_PASSWORD
+```
+
+Infisical-style parent values:
+
+```yaml
+redis:
+  auth:
+    existingSecret: infisical-redis-secret
+```
+
+The second example inherits TLS enabled and internal-CA issuance. The application
+must separately be configured for TLS and trust the CA; adding a dependency does
+not change application connection settings. Disable any old bundled Redis when
+performing a later migration. Neither application is migrated by this change.
+
+## Optional TCP route
+
+`ingressRoute.enabled` defaults to false. Enabling it creates an
+`IngressRouteTCP`, not an HTTP route:
+
+```yaml
+ingressRoute:
+  enabled: true
+  host: redis.dev.raulstechtips.dev
+```
+
+The route uses HostSNI and TLS passthrough. Traefik forwards encrypted traffic
+to Redis on port 6379; Redis terminates TLS. Clients must send the configured SNI
+hostname and trust the internal CA. DNS must point to Traefik, and the configured
+entryPoint must already exist. The issued certificate includes this hostname.
+NetworkPolicy additionally permits only the configured Traefik namespace and
+pod labels when the route is enabled.
+
+This initial route supports standalone with TLS enabled. External Sentinel
+access also requires routing every advertised data-node address; exposing only
+Sentinel's discovery Service is not a complete external HA connection design.
+
 ## Image
 
-`image.repository` selects the registry/repository. `image.tag` accepts the
-pipeline's `<version>@sha256:<digest>` value. Redis and Sentinel use the same
-image. Set `imagePullSecrets` if the selected registry requires authentication.
-The chart's source default tag is not a promise that an image has been published;
-local deployments must select a built image, and Jenkins injects its pushed digest.
+`image.repository` and `image.tag` default to the verified latest stable upstream
+Redis release, pinned by digest. Redis and Sentinel use the same image. The chart
+mounts its runtime scripts and configuration, so the upstream image works without
+our custom image.
+
+Jenkins writes its `<version>@<digest>` into `image.built.tag`. The development
+override sets `image.useBuiltImage: true`, selecting `image.built.repository`
+(GHCR) once that tag is populated. Before the build, rendering uses the upstream
+image. The packaged chart still defaults to upstream unless a consumer selects
+the built image. Set `imagePullSecrets` if the registry requires authentication.

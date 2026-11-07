@@ -3,6 +3,11 @@ set -eu
 cd "$(dirname "$0")/../.."
 . ./src/scripts/common.sh
 
+for source in src/scripts/*.sh src/config/*.conf; do
+    cmp "$source" "charts/files/${source#src/}"
+done
+printf 'PASS packaged runtime matches canonical sources\n'
+
 assert_equal() {
     [ "$1" = "$2" ] || {
         printf 'Expected <%s>, got <%s>\n' "$1" "$2" >&2

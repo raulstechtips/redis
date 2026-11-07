@@ -1,33 +1,39 @@
 {{- $root := . -}}
+{{- $name := include "redis.fullname" . -}}
 {{- $roles := list "redis" -}}
 {{- if eq .Values.mode "sentinel" -}}
 {{- $roles = append $roles "sentinel" -}}
 {{- end -}}
 {{- range $role := $roles }}
 {{- $settings := index $root.Values $role }}
+{{- $component := ternary "node" "sentinel" (eq $role "redis") }}
+{{- $claim := ternary "data" "state" (eq $role "redis") }}
 {{- $persistent := or (eq $role "sentinel") $root.Values.redis.persistence.enabled }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ $root.Release.Name }}-{{ $role }}
+  name: {{ $name }}-{{ $component }}
   labels:
     {{- include "redis.labels" $root | nindent 4 }}
     app.kubernetes.io/component: {{ $role }}
 spec:
-  serviceName: {{ $root.Release.Name }}-{{ $role }}-headless
+  serviceName: {{ $name }}-{{ $component }}-headless
   replicas: {{ if eq $role "sentinel" }}{{ $settings.replicas }}{{ else if eq $root.Values.mode "sentinel" }}{{ add 1 $settings.replicas }}{{ else }}1{{ end }}
   podManagementPolicy: Parallel
   selector:
     matchLabels:
       app.kubernetes.io/instance: {{ $root.Release.Name }}
+      app.kubernetes.io/name: {{ include "redis.name" $root }}
       app.kubernetes.io/component: {{ $role }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: redis
+        app.kubernetes.io/name: {{ include "redis.name" $root }}
         app.kubernetes.io/instance: {{ $root.Release.Name }}
         app.kubernetes.io/component: {{ $role }}
+      annotations:
+        checksum/runtime: {{ include (print $root.Template.BasePath "/runtime-config.yaml") $root | sha256sum }}
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
@@ -50,13 +56,15 @@ spec:
             - labelSelector:
                 matchLabels:
                   app.kubernetes.io/instance: {{ $root.Release.Name }}
+                  app.kubernetes.io/name: {{ include "redis.name" $root }}
                   app.kubernetes.io/component: {{ $role }}
               topologyKey: kubernetes.io/hostname
       {{- end }}
       containers:
         - name: {{ $role }}
-          image: {{ printf "%s:%s" $root.Values.image.repository $root.Values.image.tag | quote }}
+          image: {{ include "redis.image" $root | quote }}
           imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          command: ["/bin/sh", "/usr/local/lib/redis/entrypoint.sh"]
           args: [{{ $role | quote }}]
           securityContext:
             allowPrivilegeEscalation: false
@@ -72,7 +80,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: POD_HOST
-              value: {{ printf "$(POD_NAME).%s-%s-headless.%s.svc.%s" $root.Release.Name $role $root.Release.Namespace $root.Values.clusterDomain | quote }}
+              value: {{ printf "$(POD_NAME).%s-%s-headless.%s.svc.%s" $name $component $root.Release.Namespace $root.Values.clusterDomain | quote }}
             - name: MODE
               value: {{ $root.Values.mode | quote }}
             - name: TLS_ENABLED
@@ -96,7 +104,7 @@ spec:
             {{- end }}
             {{- else }}
             - name: BOOTSTRAP_PRIMARY
-              value: {{ printf "%s-redis-0.%s-redis-headless.%s.svc.%s" $root.Release.Name $root.Release.Name $root.Release.Namespace $root.Values.clusterDomain | quote }}
+              value: {{ printf "%s-node-0.%s-node-headless.%s.svc.%s" $name $name $root.Release.Namespace $root.Values.clusterDomain | quote }}
             - name: SENTINEL_QUORUM
               value: {{ $root.Values.sentinel.quorum | quote }}
             - name: DOWN_AFTER_MS
@@ -123,8 +131,14 @@ spec:
           resources:
             {{- toYaml $settings.resources | nindent 12 }}
           volumeMounts:
-            - name: data
+            - name: {{ $claim }}
               mountPath: /data
+            - name: scripts
+              mountPath: /usr/local/lib/redis
+              readOnly: true
+            - name: config
+              mountPath: /etc/redis
+              readOnly: true
             - name: runtime
               mountPath: /run/redis
             - name: auth
@@ -136,6 +150,23 @@ spec:
               readOnly: true
             {{- end }}
       volumes:
+        - name: scripts
+          configMap:
+            name: {{ $name }}-runtime
+            defaultMode: 0555
+            items:
+              {{- range $path, $_ := $root.Files.Glob "files/scripts/*.sh" }}
+              - key: {{ base $path }}
+                path: {{ base $path }}
+              {{- end }}
+        - name: config
+          configMap:
+            name: {{ $name }}-runtime
+            items:
+              - key: redis.conf
+                path: redis.conf
+              - key: sentinel.conf
+                path: sentinel.conf
         - name: runtime
           emptyDir:
             medium: Memory
@@ -150,7 +181,7 @@ spec:
         {{- if $root.Values.tls.enabled }}
         - name: tls
           secret:
-            secretName: {{ $root.Values.tls.existingSecret }}
+            secretName: {{ include "redis.tlsSecret" $root }}
             defaultMode: 0440
         {{- end }}
         {{- if not $persistent }}
@@ -160,7 +191,7 @@ spec:
   {{- if $persistent }}
   volumeClaimTemplates:
     - metadata:
-        name: data
+        name: {{ $claim }}
       spec:
         accessModes: ["ReadWriteOnce"]
         storageClassName: {{ $settings.persistence.storageClass | quote }}

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: consumer-fixture
+version: 0.0.0
+dependencies:
+  - name: redis
+    alias: cache
+    version: 0.0.0
+    repository: file://../../charts
+    condition: cache.enabled

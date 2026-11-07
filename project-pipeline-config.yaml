@@ -2,12 +2,12 @@ project-config:
   project-name: redis
   project-description: Custom non-root Redis image and standalone/Sentinel chart
   project-namespace: redis
-  publish-targets: [harbor]
+  publish-targets: [ghcr]
   docker-image:
     dockerfile: src/Dockerfile
     context: src
   test-command: sh tests/unit/run.sh
-  helm-image-tag-path: .image.tag
+  helm-image-tag-path: .image.built.tag
   helm-overrides:
     - overrides.yaml
   pipeline-steps:

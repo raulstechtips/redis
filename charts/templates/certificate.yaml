@@ -1,0 +1,38 @@
+{{- if and .Values.tls.enabled (not .Values.tls.existingSecret) }}
+{{- $name := include "redis.fullname" . }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "redis.tlsSecret" . }}
+  duration: {{ .Values.tls.duration | quote }}
+  renewBefore: {{ .Values.tls.renewBefore | quote }}
+  privateKey:
+    rotationPolicy: Always
+  issuerRef:
+    name: {{ .Values.tls.issuerRef.name }}
+    kind: {{ .Values.tls.issuerRef.kind }}
+    group: cert-manager.io
+  dnsNames:
+    - localhost
+    - {{ $name }}
+    - {{ printf "%s.%s" $name .Release.Namespace }}
+    - {{ printf "%s.%s.svc" $name .Release.Namespace }}
+    - {{ printf "%s.%s.svc.%s" $name .Release.Namespace .Values.clusterDomain }}
+    - {{ printf "*.%s-node-headless.%s.svc.%s" $name .Release.Namespace .Values.clusterDomain | quote }}
+    {{- if eq .Values.mode "sentinel" }}
+    - {{ $name }}-sentinel
+    - {{ printf "%s-sentinel.%s" $name .Release.Namespace }}
+    - {{ printf "%s-sentinel.%s.svc" $name .Release.Namespace }}
+    - {{ printf "%s-sentinel.%s.svc.%s" $name .Release.Namespace .Values.clusterDomain }}
+    - {{ printf "*.%s-sentinel-headless.%s.svc.%s" $name .Release.Namespace .Values.clusterDomain | quote }}
+    {{- end }}
+    {{- if .Values.ingressRoute.enabled }}
+    - {{ .Values.ingressRoute.host | quote }}
+    {{- end }}
+  ipAddresses: ["127.0.0.1"]
+  usages: [server auth, client auth]
+{{- end }}

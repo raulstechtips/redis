@@ -1,0 +1,4 @@
+global:
+  fixture: inherited
+cache:
+  enabled: true

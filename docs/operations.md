@@ -2,22 +2,20 @@
 
 ## Install
 
-First create the namespace and credential described in configuration.md.
-Build and publish an image. From the repository root, install the desired mode
-with that image tag:
+First create the namespace and select the credential source described in
+configuration.md. Default TLS requires cert-manager and the internal-CA issuer.
+The chart can use the upstream image without building a custom image.
+Run Helm from the chart directory:
 
 ```sh
-helm upgrade --install redis charts -n redis \
-  --set-string image.tag=YOUR_PUBLISHED_TAG \
-  --wait --timeout 10m
+cd charts
+helm upgrade -i redis . -n redis --wait --timeout 10m
 ```
 
 For the development Sentinel configuration:
 
 ```sh
-helm upgrade --install redis charts -n redis -f overrides.yaml \
-  --set-string image.tag=YOUR_PUBLISHED_TAG \
-  --wait --timeout 10m
+helm upgrade -i redis . -f overrides.yaml -n redis --wait --timeout 10m
 ```
 
 Expected: standalone has one ready Redis pod. The development Sentinel mode has
@@ -33,11 +31,11 @@ helm status redis -n redis
 The following commands read the mounted password inside the pod without printing it:
 
 ```sh
-kubectl -n redis exec redis-redis-0 -- sh -c \
-  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli PING'
+kubectl -n redis exec redis-node-0 -- sh -c \
+  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli --tls --cacert /tls/ca.crt PING'
 ```
 
-Expected: `PONG`. For TLS, use redis-cli with `--tls --cacert /tls/ca.crt`.
+Expected: `PONG`. If TLS is explicitly disabled, omit `--tls --cacert /tls/ca.crt`.
 An unauthenticated command must return `NOAUTH`, not data.
 
 In standalone mode, write a temporary key, replace the pod, wait for it to be
@@ -48,9 +46,9 @@ Use a test release only; pod replacement interrupts service.
 
 ```sh
 kubectl -n redis exec redis-sentinel-0 -- sh -c \
-  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli -p 26379 SENTINEL get-master-addr-by-name mymaster'
+  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli --tls --cacert /tls/ca.crt -p 26379 SENTINEL get-master-addr-by-name mymaster'
 kubectl -n redis exec redis-sentinel-0 -- sh -c \
-  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli -p 26379 SENTINEL CKQUORUM mymaster'
+  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli --tls --cacert /tls/ca.crt -p 26379 SENTINEL CKQUORUM mymaster'
 ```
 
 Expected: one data-pod DNS name and port 6379, and an `OK` quorum response.
@@ -62,7 +60,7 @@ before pausing the current primary. In a separate terminal:
 
 ```sh
 kubectl -n redis exec redis-sentinel-0 -- sh -c \
-  'export REDISCLI_AUTH=$(cat /secrets/password); redis-cli -p 26379 SUBSCRIBE +switch-master'
+  'export REDISCLI_AUTH=$(cat /secrets/password); redis-cli --tls --cacert /tls/ca.crt -p 26379 SUBSCRIBE +switch-master'
 ```
 
 Wait for the subscription acknowledgement. Find the current primary using the
@@ -71,7 +69,7 @@ discovery command above, then run the following on that pod, replacing
 
 ```sh
 kubectl -n redis exec PRIMARY_POD -- sh -c \
-  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli CLIENT PAUSE 60000 ALL'
+  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli --tls --cacert /tls/ca.crt CLIENT PAUSE 60000 ALL'
 ```
 
 This suspends command processing for at most 60 seconds. The liveness probe may
@@ -116,3 +114,8 @@ controlled recovery. This chart does not automate disaster recovery or backups.
 Helm uninstall leaves StatefulSet PVCs. The configured storage class has a
 Retain reclaim policy. Inspect and remove unused claims and retained volumes
 deliberately after confirming their data is no longer needed.
+
+The review naming change creates `data-redis-node-N` and `state-redis-sentinel-N`
+claims for release `redis`. Old `data-redis-redis-N` and `data-redis-sentinel-N`
+test claims are not adopted or deleted. This prevents stale Sentinel addresses
+from being reused after the naming change. This is not a data migration.

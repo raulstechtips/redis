@@ -1,25 +1,64 @@
 mode: standalone
+fullnameOverride: ""
+# Helm supplies global values to dependencies. No global settings are required here.
+global: {}
 image:
-  repository: harbor.prod.raulstechtips.dev/raulstechtips/redis
-  tag: "8.2.11"
+  # Latest stable upstream release verified on 2026-11-07. Development overrides
+  # select our custom image; the chart works with either image.
+  repository: docker.io/library/redis
+  tag: "8.10.3@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53"
   pullPolicy: IfNotPresent
+  # CI writes built.tag without changing the published chart's upstream default.
+  # Before an image is built, rendering uses the upstream image for validation.
+  useBuiltImage: false
+  built:
+    repository: ghcr.io/raulstechtips/redis
+    tag: ""
 imagePullSecrets: []
 clusterDomain: cluster.local
 
 auth:
-  # Empty selects <release>-auth. Create this Secret before installing.
+  # Priority: Infisical sync > existing Secret > chart-generated password.
+  # Generated passwords are preserved by Helm lookup on connected upgrades.
+  # For GitOps rendering, select Infisical or an existing Secret instead.
   existingSecret: ""
   passwordKey: password
+  infisical:
+    enabled: false
+    authRef:
+      name: ""
+      namespace: ""
+    projectSlug: ""
+    environmentSlug: ""
+    secretPath: ""
+    secretKey: REDIS_PASSWORD
+    refreshInterval: 60s
 
 tls:
-  enabled: false
-  # Must contain ca.crt, tls.crt and tls.key. Use SANs for pod DNS names.
+  enabled: true
+  # Empty requests a leaf certificate from the internal CA through cert-manager.
+  # Set a Secret containing ca.crt, tls.crt, tls.key to supply your own certificate.
   existingSecret: ""
+  issuerRef:
+    name: raulstechtips-internal-ca-issuer
+    kind: ClusterIssuer
+  duration: 2160h
+  renewBefore: 360h
 
 redis:
-  # Applies only in Sentinel mode; excludes the primary.
+  # Number of extra Redis data pods in Sentinel mode, excluding its one primary.
+  # 2 means three data pods; 1 means two. Standalone always has one data pod.
+  # Sentinel can promote any replica, so pod names do not encode permanent roles.
   replicas: 2
+  # Redis keeps the dataset in RAM; leave headroom below the container memory limit.
   maxmemory: 128mb
+  # At maxmemory, noeviction rejects allocating writes instead of removing keys.
+  # Use noeviction for queues/persistent state. Cache alternatives:
+  # allkeys-lru/lfu: evict least recently/frequently used keys from the whole dataset.
+  # volatile-lru/lfu: the same policies, but only keys with an expiry.
+  # allkeys-random/volatile-random: evict random keys, from all/expiring keys.
+  # volatile-ttl: evict expiring keys with the shortest remaining lifetime.
+  # Volatile policies cannot free memory if no eligible expiring keys remain.
   evictionPolicy: noeviction
   persistence:
     enabled: true
@@ -51,5 +90,19 @@ sentinel:
 networkPolicy:
   enabled: true
   # Extra Kubernetes NetworkPolicy peers that can connect as clients.
-  # Same-release pods are always allowed; no other clients by default.
+  # Same-release pods in this namespace are allowed, including a parent chart's
+  # application pods. Other releases/namespaces need explicit peers below.
   ingressFrom: []
+
+ingressRoute:
+  # Redis is TCP, so this creates IngressRouteTCP, not an HTTP IngressRoute.
+  # Initially supported for standalone only; external Sentinel requires routing
+  # each advertised data-node address, not only the discovery endpoint.
+  enabled: false
+  ingressClass: traefik-external
+  entryPoints: [websecure]
+  host: ""
+  # Used by NetworkPolicy only when the route is enabled.
+  controllerNamespace: traefik
+  controllerPodSelector:
+    app.kubernetes.io/name: traefik

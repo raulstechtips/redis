@@ -1,0 +1,20 @@
+{{- if .Values.ingressRoute.enabled }}
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: {{ include "redis.fullname" . }}
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.ingressRoute.ingressClass | quote }}
+spec:
+  entryPoints:
+    {{- toYaml .Values.ingressRoute.entryPoints | nindent 4 }}
+  routes:
+    - match: {{ printf "HostSNI(`%s`)" .Values.ingressRoute.host | quote }}
+      services:
+        - name: {{ include "redis.fullname" . }}
+          port: 6379
+  tls:
+    passthrough: true
+{{- end }}
