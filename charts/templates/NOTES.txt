@@ -1,0 +1,12 @@
+Mode: {{ .Values.mode }}
+Password Secret: {{ include "redis.secret" . }} (key {{ .Values.auth.passwordKey }})
+{{ if eq .Values.mode "standalone" }}
+Redis endpoint: {{ .Release.Name }}-redis.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:6379
+{{ else }}
+Sentinel endpoint: {{ .Release.Name }}-sentinel.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:26379
+Master name: {{ .Values.sentinel.masterName }}
+Use a Sentinel-aware client. The Redis headless Service is discovery infrastructure,
+not a writable primary endpoint. It includes replicas.
+{{ end }}
+NetworkPolicy permits same-release pods and configured networkPolicy.ingressFrom peers.
+PVCs retain data after uninstall. Delete them only when the data is no longer needed.

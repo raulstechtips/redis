@@ -1,0 +1,3 @@
+{{- if and (eq .Values.mode "sentinel") (gt (int .Values.sentinel.quorum) (int .Values.sentinel.replicas)) -}}
+{{- fail "sentinel.quorum must not exceed sentinel.replicas" -}}
+{{- end -}}

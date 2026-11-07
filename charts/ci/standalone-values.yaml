@@ -1,0 +1,5 @@
+mode: standalone
+redis:
+  persistence:
+    enabled: false
+  evictionPolicy: allkeys-lru

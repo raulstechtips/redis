@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["mode", "image", "auth", "tls", "redis", "sentinel", "networkPolicy"],
+  "properties": {
+    "mode": {"enum": ["standalone", "sentinel"]},
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "tag": {"type": "string", "minLength": 1},
+        "pullPolicy": {"enum": ["Always", "IfNotPresent", "Never"]}
+      },
+      "additionalProperties": false
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}}, "additionalProperties": false}
+    },
+    "clusterDomain": {"type": "string", "pattern": "^[a-z0-9.-]+$"},
+    "auth": {
+      "type": "object",
+      "required": ["existingSecret", "passwordKey"],
+      "properties": {
+        "existingSecret": {"type": "string", "pattern": "^[a-z0-9.-]*$"},
+        "passwordKey": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "tls": {
+      "type": "object",
+      "required": ["enabled", "existingSecret"],
+      "properties": {"enabled": {"type": "boolean"}, "existingSecret": {"type": "string"}},
+      "if": {"properties": {"enabled": {"const": true}}},
+      "then": {"properties": {"existingSecret": {"minLength": 1}}},
+      "additionalProperties": false
+    },
+    "redis": {
+      "type": "object",
+      "required": ["replicas", "maxmemory", "evictionPolicy", "persistence", "resources"],
+      "properties": {
+        "replicas": {"type": "integer", "minimum": 1, "maximum": 9},
+        "maxmemory": {"type": "string", "pattern": "^[1-9][0-9]*(kb|mb|gb)?$"},
+        "evictionPolicy": {"enum": ["noeviction", "allkeys-lru", "allkeys-lfu", "volatile-lru", "volatile-lfu", "allkeys-random", "volatile-random", "volatile-ttl"]},
+        "persistence": {
+          "type": "object",
+          "required": ["enabled", "storageClass", "size"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "storageClass": {"type": "string", "minLength": 1},
+            "size": {"type": "string", "pattern": "^[1-9][0-9]*(Mi|Gi|Ti)$"}
+          },
+          "additionalProperties": false
+        },
+        "resources": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "sentinel": {
+      "type": "object",
+      "required": ["replicas", "quorum", "masterName", "downAfterMilliseconds", "failoverTimeoutMilliseconds", "persistence", "resources"],
+      "properties": {
+        "replicas": {"enum": [3, 5, 7]},
+        "quorum": {"type": "integer", "minimum": 2},
+        "masterName": {"type": "string", "pattern": "^[a-zA-Z0-9_-]+$"},
+        "downAfterMilliseconds": {"type": "integer", "minimum": 1000},
+        "failoverTimeoutMilliseconds": {"type": "integer", "minimum": 1000},
+        "persistence": {
+          "type": "object",
+          "required": ["storageClass", "size"],
+          "properties": {
+            "storageClass": {"type": "string", "minLength": 1},
+            "size": {"type": "string", "pattern": "^[1-9][0-9]*(Mi|Gi|Ti)$"}
+          },
+          "additionalProperties": false
+        },
+        "resources": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "networkPolicy": {
+      "type": "object",
+      "required": ["enabled", "ingressFrom"],
+      "properties": {"enabled": {"type": "boolean"}, "ingressFrom": {"type": "array", "items": {"type": "object"}}},
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

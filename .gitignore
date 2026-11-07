@@ -1,0 +1,4 @@
+.pipeline/
+charts/charts/
+charts/*.tgz
+.omo/

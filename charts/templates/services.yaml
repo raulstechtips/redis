@@ -1,0 +1,38 @@
+{{- $roles := list "redis" -}}
+{{- if eq .Values.mode "sentinel" -}}
+{{- $roles = append $roles "sentinel" -}}
+{{- end -}}
+{{- range $role := $roles }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Release.Name }}-{{ $role }}-headless
+  labels:
+    {{- include "redis.labels" $ | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: {{ $role }}
+  ports:
+    - name: {{ $role }}
+      port: {{ if eq $role "redis" }}6379{{ else }}26379{{ end }}
+      targetPort: {{ $role }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.mode | replace "standalone" "redis" }}
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: {{ .Values.mode | replace "standalone" "redis" }}
+  ports:
+    - name: client
+      port: {{ if eq .Values.mode "standalone" }}6379{{ else }}26379{{ end }}
+      targetPort: {{ .Values.mode | replace "standalone" "redis" }}

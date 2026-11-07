@@ -1,0 +1,55 @@
+mode: standalone
+image:
+  repository: harbor.prod.raulstechtips.dev/raulstechtips/redis
+  tag: "8.2.11"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+clusterDomain: cluster.local
+
+auth:
+  # Empty selects <release>-auth. Create this Secret before installing.
+  existingSecret: ""
+  passwordKey: password
+
+tls:
+  enabled: false
+  # Must contain ca.crt, tls.crt and tls.key. Use SANs for pod DNS names.
+  existingSecret: ""
+
+redis:
+  # Applies only in Sentinel mode; excludes the primary.
+  replicas: 2
+  maxmemory: 128mb
+  evictionPolicy: noeviction
+  persistence:
+    enabled: true
+    storageClass: longhorn-storage-class-replicas-1
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+sentinel:
+  replicas: 3
+  quorum: 2
+  masterName: mymaster
+  downAfterMilliseconds: 10000
+  failoverTimeoutMilliseconds: 60000
+  persistence:
+    storageClass: longhorn-storage-class-replicas-1
+    size: 128Mi
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      memory: 64Mi
+
+networkPolicy:
+  enabled: true
+  # Extra Kubernetes NetworkPolicy peers that can connect as clients.
+  # Same-release pods are always allowed; no other clients by default.
+  ingressFrom: []

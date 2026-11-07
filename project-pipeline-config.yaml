@@ -1,0 +1,20 @@
+project-config:
+  project-name: redis
+  project-description: Custom non-root Redis image and standalone/Sentinel chart
+  project-namespace: redis
+  publish-targets: [harbor]
+  docker-image:
+    dockerfile: src/Dockerfile
+    context: src
+  test-command: sh tests/unit/run.sh
+  helm-image-tag-path: .image.tag
+  helm-overrides:
+    - overrides.yaml
+  pipeline-steps:
+    helm-test: true
+    unit-test: true
+    trivy-scan: true
+    opengrep-scan: true
+    build-docker-image: true
+    helm-package-upload: true
+    helm-install: true

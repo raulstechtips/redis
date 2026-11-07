@@ -1,0 +1,110 @@
+suite: Redis topology and security
+templates:
+  - templates/statefulsets.yaml
+release:
+  name: redis
+  namespace: redis
+tests:
+  - it: defaults to one persistent non-root Redis pod
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 10001
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          value: [ALL]
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.storageClassName
+          value: longhorn-storage-class-replicas-1
+  - it: creates primary plus two replicas and three separate Sentinels
+    set:
+      mode: sentinel
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: spec.replicas
+          value: 3
+        documentIndex: 0
+      - equal:
+          path: spec.replicas
+          value: 3
+        documentIndex: 1
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.storageClassName
+          value: longhorn-storage-class-replicas-1
+        documentIndex: 1
+      - equal:
+          path: spec.podManagementPolicy
+          value: Parallel
+        documentIndex: 0
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution[0].topologyKey
+          value: kubernetes.io/hostname
+        documentIndex: 1
+  - it: permits the resource-limited one-replica override
+    values:
+      - ../../overrides.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+        documentIndex: 0
+      - equal:
+          path: spec.replicas
+          value: 3
+        documentIndex: 1
+  - it: can use ephemeral storage for a disposable cache
+    set:
+      redis.persistence.enabled: false
+    asserts:
+      - isNull:
+          path: spec.volumeClaimTemplates
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            emptyDir: {}
+  - it: mounts an existing credential without embedding its value
+    set:
+      auth.existingSecret: redis-credentials
+      auth.passwordKey: redis-password
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: auth
+            secret:
+              secretName: redis-credentials
+              defaultMode: 288
+              items:
+                - key: redis-password
+                  path: password
+  - it: mounts TLS credentials when enabled
+    set:
+      tls.enabled: true
+      tls.existingSecret: redis-tls
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: TLS_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tls
+            secret:
+              secretName: redis-tls
+              defaultMode: 288
