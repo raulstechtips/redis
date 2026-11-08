@@ -1,0 +1,6 @@
+.pipeline/
+charts/charts/
+charts/*.tgz
+.omo/
+tests/dependency/charts/
+tests/dependency/Chart.lock

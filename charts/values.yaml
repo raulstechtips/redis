@@ -1,0 +1,105 @@
+mode: standalone
+fullnameOverride: ""
+# Helm supplies global values to dependencies. No global settings are required here.
+global: {}
+image:
+  # Our custom image contains the Redis binaries, startup scripts and defaults.
+  # This is a published custom build. CI replaces the tag with its own version
+  # and digest before packaging and deployment.
+  repository: ghcr.io/raulstechtips/redis
+  tag: "0.1.0-feature-devsecops-190-74618ea-8eb3efb-2@sha256:09b856349ebfad444730cb9d491d68b7440c804ae549de0b4c1076a6186cca91"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+clusterDomain: cluster.local
+
+auth:
+  # Priority: Infisical sync > existing Secret > chart-generated password.
+  # Generated passwords are preserved by Helm lookup on connected upgrades.
+  # For GitOps rendering, select Infisical or an existing Secret instead.
+  existingSecret: ""
+  passwordKey: password
+  infisical:
+    enabled: false
+    authRef:
+      name: ""
+      namespace: ""
+    projectSlug: ""
+    environmentSlug: ""
+    secretPath: ""
+    secretKey: REDIS_PASSWORD
+    refreshInterval: 60s
+
+tls:
+  enabled: true
+  # Empty requests a leaf certificate from the internal CA through cert-manager.
+  # Set a Secret containing ca.crt, tls.crt, tls.key to supply your own certificate.
+  existingSecret: ""
+  issuerRef:
+    name: raulstechtips-internal-ca-issuer
+    kind: ClusterIssuer
+  duration: 2160h
+  renewBefore: 360h
+
+redis:
+  # Number of extra Redis data pods in Sentinel mode, excluding its one primary.
+  # 2 means three data pods; 1 means two. Standalone always has one data pod.
+  # Sentinel can promote any replica, so pod names do not encode permanent roles.
+  replicas: 2
+  # Redis keeps the dataset in RAM; leave headroom below the container memory limit.
+  maxmemory: 128mb
+  # At maxmemory, noeviction rejects allocating writes instead of removing keys.
+  # Use noeviction for queues/persistent state. Cache alternatives:
+  # allkeys-lru/lfu: evict least recently/frequently used keys from the whole dataset.
+  # volatile-lru/lfu: the same policies, but only keys with an expiry.
+  # allkeys-random/volatile-random: evict random keys, from all/expiring keys.
+  # volatile-ttl: evict expiring keys with the shortest remaining lifetime.
+  # Volatile policies cannot free memory if no eligible expiring keys remain.
+  evictionPolicy: noeviction
+  persistence:
+    enabled: true
+    storageClass: longhorn-storage-class-replicas-1
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+sentinel:
+  replicas: 3
+  quorum: 2
+  # Empty derives <Helm release name>-master, for example redis-harbor-master.
+  # Set a value only when an explicit group name is needed.
+  masterName: ""
+  downAfterMilliseconds: 10000
+  failoverTimeoutMilliseconds: 60000
+  persistence:
+    storageClass: longhorn-storage-class-replicas-1
+    size: 128Mi
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      memory: 64Mi
+
+networkPolicy:
+  enabled: true
+  # Extra Kubernetes NetworkPolicy peers that can connect as clients.
+  # Same-release pods in this namespace are allowed, including a parent chart's
+  # application pods. Other releases/namespaces need explicit peers below.
+  ingressFrom: []
+
+ingressRoute:
+  # Redis is TCP, so this creates IngressRouteTCP, not an HTTP IngressRoute.
+  # Initially supported for standalone only; external Sentinel requires routing
+  # each advertised data-node address, not only the discovery endpoint.
+  enabled: false
+  ingressClass: traefik-external
+  entryPoints: [websecure]
+  host: ""
+  # Used by NetworkPolicy only when the route is enabled.
+  controllerNamespace: traefik
+  controllerPodSelector:
+    app.kubernetes.io/name: traefik

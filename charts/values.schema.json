@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["mode", "image", "auth", "tls", "redis", "sentinel", "networkPolicy"],
+  "properties": {
+    "mode": {"enum": ["standalone", "sentinel"]},
+    "enabled": {"type": "boolean"},
+    "fullnameOverride": {"type": "string", "maxLength": 40, "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$"},
+    "global": {"type": "object"},
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "tag": {"type": "string", "minLength": 1},
+        "pullPolicy": {"enum": ["Always", "IfNotPresent", "Never"]}
+      },
+      "additionalProperties": false
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}}, "additionalProperties": false}
+    },
+    "clusterDomain": {"type": "string", "pattern": "^[a-z0-9.-]+$"},
+    "auth": {
+      "type": "object",
+      "required": ["existingSecret", "passwordKey"],
+      "properties": {
+        "existingSecret": {"type": "string", "pattern": "^[a-z0-9.-]*$"},
+        "passwordKey": {"type": "string", "pattern": "^[a-zA-Z0-9._-]+$"},
+        "infisical": {
+          "type": "object",
+          "required": ["enabled", "authRef", "projectSlug", "environmentSlug", "secretPath", "secretKey", "refreshInterval"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "authRef": {
+              "type": "object",
+              "required": ["name", "namespace"],
+              "properties": {"name": {"type": "string"}, "namespace": {"type": "string"}},
+              "additionalProperties": false
+            },
+            "projectSlug": {"type": "string"},
+            "environmentSlug": {"type": "string"},
+            "secretPath": {"type": "string"},
+            "secretKey": {"type": "string", "minLength": 1},
+            "refreshInterval": {"type": "string", "pattern": "^[1-9][0-9]*(s|m|h)$"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "tls": {
+      "type": "object",
+      "required": ["enabled", "existingSecret", "issuerRef", "duration", "renewBefore"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "existingSecret": {"type": "string"},
+        "issuerRef": {
+          "type": "object", "required": ["name", "kind"],
+          "properties": {"name": {"type": "string", "minLength": 1}, "kind": {"enum": ["Issuer", "ClusterIssuer"]}},
+          "additionalProperties": false
+        },
+        "duration": {"type": "string", "pattern": "^[1-9][0-9]*h$"},
+        "renewBefore": {"type": "string", "pattern": "^[1-9][0-9]*h$"}
+      },
+      "additionalProperties": false
+    },
+    "redis": {
+      "type": "object",
+      "required": ["replicas", "maxmemory", "evictionPolicy", "persistence", "resources"],
+      "properties": {
+        "replicas": {"type": "integer", "minimum": 1, "maximum": 9},
+        "maxmemory": {"type": "string", "pattern": "^[1-9][0-9]*(kb|mb|gb)?$"},
+        "evictionPolicy": {"enum": ["noeviction", "allkeys-lru", "allkeys-lfu", "volatile-lru", "volatile-lfu", "allkeys-random", "volatile-random", "volatile-ttl"]},
+        "persistence": {
+          "type": "object",
+          "required": ["enabled", "storageClass", "size"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "storageClass": {"type": "string", "minLength": 1},
+            "size": {"type": "string", "pattern": "^[1-9][0-9]*(Mi|Gi|Ti)$"}
+          },
+          "additionalProperties": false
+        },
+        "resources": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "sentinel": {
+      "type": "object",
+      "required": ["replicas", "quorum", "masterName", "downAfterMilliseconds", "failoverTimeoutMilliseconds", "persistence", "resources"],
+      "properties": {
+        "replicas": {"enum": [3, 5, 7]},
+        "quorum": {"type": "integer", "minimum": 2},
+        "masterName": {"type": "string", "pattern": "^[a-zA-Z0-9_-]*$"},
+        "downAfterMilliseconds": {"type": "integer", "minimum": 1000},
+        "failoverTimeoutMilliseconds": {"type": "integer", "minimum": 1000},
+        "persistence": {
+          "type": "object",
+          "required": ["storageClass", "size"],
+          "properties": {
+            "storageClass": {"type": "string", "minLength": 1},
+            "size": {"type": "string", "pattern": "^[1-9][0-9]*(Mi|Gi|Ti)$"}
+          },
+          "additionalProperties": false
+        },
+        "resources": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "ingressRoute": {
+      "type": "object",
+      "required": ["enabled", "ingressClass", "entryPoints", "host", "controllerNamespace", "controllerPodSelector"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "ingressClass": {"type": "string"},
+        "entryPoints": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "host": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9.-]*[a-z0-9])?)?$"},
+        "controllerNamespace": {"type": "string", "minLength": 1},
+        "controllerPodSelector": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "networkPolicy": {
+      "type": "object",
+      "required": ["enabled", "ingressFrom"],
+      "properties": {"enabled": {"type": "boolean"}, "ingressFrom": {"type": "array", "items": {"type": "object"}}},
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

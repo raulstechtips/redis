@@ -1,0 +1,41 @@
+suite: Redis client discovery
+templates:
+  - templates/services.yaml
+release:
+  name: redis
+  namespace: redis
+tests:
+  - it: exposes the single Redis instance directly in standalone mode
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: metadata.name
+          value: redis
+        documentIndex: 1
+      - equal:
+          path: spec.ports[0].port
+          value: 6379
+        documentIndex: 1
+  - it: exposes Sentinel discovery and publishes bootstrap pod DNS
+    set:
+      mode: sentinel
+    asserts:
+      - hasDocuments:
+          count: 3
+      - equal:
+          path: metadata.name
+          value: redis-sentinel
+        documentIndex: 2
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: sentinel
+        documentIndex: 2
+      - equal:
+          path: spec.ports[0].port
+          value: 26379
+        documentIndex: 2
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: true
+        documentIndex: 0

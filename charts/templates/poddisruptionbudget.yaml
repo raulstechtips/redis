@@ -1,0 +1,25 @@
+{{- if eq .Values.mode "sentinel" }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "redis.fullname" . }}-node
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: {{ include "redis.name" . }}
+      app.kubernetes.io/component: redis
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "redis.fullname" . }}-sentinel
+spec:
+  minAvailable: {{ add 1 (div (int .Values.sentinel.replicas) 2) }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: {{ include "redis.name" . }}
+      app.kubernetes.io/component: sentinel
+{{- end }}

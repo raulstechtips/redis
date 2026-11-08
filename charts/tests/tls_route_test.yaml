@@ -1,0 +1,60 @@
+suite: Internal CA and optional TCP route
+templates:
+  - templates/certificate.yaml
+  - templates/ingressroute.yaml
+release:
+  name: redis
+  namespace: redis
+tests:
+  - it: requests a leaf certificate from the internal CA by default
+    template: templates/certificate.yaml
+    asserts:
+      - isKind:
+          of: Certificate
+      - equal:
+          path: spec.issuerRef
+          value:
+            name: raulstechtips-internal-ca-issuer
+            kind: ClusterIssuer
+            group: cert-manager.io
+      - contains:
+          path: spec.dnsNames
+          content: '*.redis-node-headless.redis.svc.cluster.local'
+  - it: does not issue a certificate when TLS is disabled
+    template: templates/certificate.yaml
+    set:
+      tls.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: uses a supplied TLS secret without issuing another certificate
+    template: templates/certificate.yaml
+    set:
+      tls.existingSecret: supplied-tls
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: keeps ingress disabled by default
+    template: templates/ingressroute.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: routes encrypted Redis TCP without terminating TLS
+    template: templates/ingressroute.yaml
+    set:
+      ingressRoute.enabled: true
+      ingressRoute.host: redis.dev.raulstechtips.dev
+    asserts:
+      - isKind:
+          of: IngressRouteTCP
+      - equal:
+          path: spec.tls.passthrough
+          value: true
+      - equal:
+          path: spec.routes[0].match
+          value: HostSNI(`redis.dev.raulstechtips.dev`)
+      - equal:
+          path: spec.routes[0].services[0]
+          value:
+            name: redis
+            port: 6379

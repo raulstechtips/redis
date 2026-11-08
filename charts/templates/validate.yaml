@@ -1,0 +1,14 @@
+{{- if and (eq .Values.mode "sentinel") (gt (int .Values.sentinel.quorum) (int .Values.sentinel.replicas)) -}}
+{{- fail "sentinel.quorum must not exceed sentinel.replicas" -}}
+{{- end -}}
+{{- if .Values.ingressRoute.enabled -}}
+{{- if ne .Values.mode "standalone" -}}
+{{- fail "ingressRoute supports standalone only; Sentinel clients need access to all advertised data nodes" -}}
+{{- end -}}
+{{- if not .Values.tls.enabled -}}
+{{- fail "ingressRoute requires TLS for HostSNI routing and passthrough" -}}
+{{- end -}}
+{{- if not .Values.ingressRoute.host -}}
+{{- fail "ingressRoute.host is required when ingressRoute is enabled" -}}
+{{- end -}}
+{{- end -}}

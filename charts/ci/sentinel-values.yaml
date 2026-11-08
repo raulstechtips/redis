@@ -1,0 +1,3 @@
+mode: sentinel
+redis:
+  replicas: 1

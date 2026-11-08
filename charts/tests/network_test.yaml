@@ -1,0 +1,35 @@
+suite: Release-scoped network access
+templates:
+  - templates/networkpolicy.yaml
+release:
+  name: harbor
+  namespace: harbor
+tests:
+  - it: allows parent application pods from the same release and namespace
+    asserts:
+      - equal:
+          path: metadata.name
+          value: harbor-redis
+      - equal:
+          path: spec.ingress[0].from[0]
+          value:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/instance: harbor
+      - equal:
+          path: spec.podSelector.matchLabels["app.kubernetes.io/name"]
+          value: redis
+  - it: permits Traefik only when its TCP route is enabled
+    set:
+      ingressRoute.enabled: true
+      ingressRoute.host: redis.dev.raulstechtips.dev
+    asserts:
+      - equal:
+          path: spec.ingress[0].from[1]
+          value:
+            namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: traefik
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: traefik
