@@ -7,11 +7,10 @@ image:
   # This is a published custom build. CI replaces the tag with its own version
   # and digest before packaging and deployment.
   repository: ghcr.io/raulstechtips/redis
-  tag: "0.1.0-feature-devsecops-190-74618ea-8eb3efb-2@sha256:09b856349ebfad444730cb9d491d68b7440c804ae549de0b4c1076a6186cca91"
+  tag: "0.1.0"
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 clusterDomain: cluster.local
-
 auth:
   # Priority: Infisical sync > existing Secret > chart-generated password.
   # Generated passwords are preserved by Helm lookup on connected upgrades.
@@ -28,7 +27,6 @@ auth:
     secretPath: ""
     secretKey: REDIS_PASSWORD
     refreshInterval: 60s
-
 tls:
   enabled: true
   # Empty requests a leaf certificate from the internal CA through cert-manager.
@@ -39,7 +37,6 @@ tls:
     kind: ClusterIssuer
   duration: 2160h
   renewBefore: 360h
-
 redis:
   # Number of extra Redis data pods in Sentinel mode, excluding its one primary.
   # 2 means three data pods; 1 means two. Standalone always has one data pod.
@@ -65,7 +62,6 @@ redis:
       memory: 64Mi
     limits:
       memory: 256Mi
-
 sentinel:
   replicas: 3
   quorum: 2
@@ -83,14 +79,12 @@ sentinel:
       memory: 16Mi
     limits:
       memory: 64Mi
-
 networkPolicy:
   enabled: true
   # Extra Kubernetes NetworkPolicy peers that can connect as clients.
   # Same-release pods in this namespace are allowed, including a parent chart's
   # application pods. Other releases/namespaces need explicit peers below.
   ingressFrom: []
-
 ingressRoute:
   # Redis is TCP, so this creates IngressRouteTCP, not an HTTP IngressRoute.
   # Initially supported for standalone only; external Sentinel requires routing
