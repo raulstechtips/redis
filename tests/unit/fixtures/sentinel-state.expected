@@ -1,0 +1,7 @@
+sentinel myid 1111111111111111111111111111111111111111
+sentinel monitor redis-harbor-master redis-node-1.redis-node-headless.redis.svc.cluster.local 6379 3
+sentinel known-replica redis-harbor-master redis-node-0.redis-node-headless.redis.svc.cluster.local 6379
+sentinel known-sentinel redis-harbor-master redis-sentinel-1.redis-sentinel-headless.redis.svc.cluster.local 26379 2222222222222222222222222222222222222222
+sentinel current-epoch 7
+sentinel config-epoch redis-harbor-master 7
+sentinel leader-epoch redis-harbor-master 7

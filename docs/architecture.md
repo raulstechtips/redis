@@ -70,7 +70,9 @@ protect quorum during voluntary evictions; they do not prevent node failures or
 serialize StatefulSet updates.
 
 Clients must use Sentinel discovery through the `redis-sentinel` Service,
-master name `mymaster` by default. The Redis headless Service includes replicas:
+with master name `<Helm release name>-master` by default. Release `redis` uses
+`redis-master`; release `redis-harbor` uses `redis-harbor-master`.
+The Redis headless Service includes replicas:
 it is not a writable-primary endpoint.
 
 ## Storage and availability limits

@@ -45,11 +45,14 @@ Use a test release only; pod replacement interrupts service.
 
 ## Check Sentinel
 
+These commands use the pod's configured `MASTER_NAME`. For release `redis`, the
+default is `redis-master`.
+
 ```sh
 kubectl -n redis exec redis-sentinel-0 -- sh -c \
-  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli --tls --cacert /tls/ca.crt -p 26379 SENTINEL get-master-addr-by-name mymaster'
+  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli --tls --cacert /tls/ca.crt -p 26379 SENTINEL get-master-addr-by-name "$MASTER_NAME"'
 kubectl -n redis exec redis-sentinel-0 -- sh -c \
-  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli --tls --cacert /tls/ca.crt -p 26379 SENTINEL CKQUORUM mymaster'
+  'REDISCLI_AUTH=$(cat /secrets/password) redis-cli --tls --cacert /tls/ca.crt -p 26379 SENTINEL CKQUORUM "$MASTER_NAME"'
 ```
 
 Expected: one data-pod DNS name and port 6379, and an `OK` quorum response.

@@ -69,7 +69,9 @@ redis:
 sentinel:
   replicas: 3
   quorum: 2
-  masterName: mymaster
+  # Empty derives <Helm release name>-master, for example redis-harbor-master.
+  # Set a value only when an explicit group name is needed.
+  masterName: ""
   downAfterMilliseconds: 10000
   failoverTimeoutMilliseconds: 60000
   persistence:

@@ -57,7 +57,7 @@ those deployments; do not use generated credentials for offline GitOps rendering
 | `redis.persistence.size` | `1Gi` | Storage requested for each Redis pod |
 | `sentinel.replicas` | `3` | Independent Sentinel processes; supported counts 3, 5, 7 |
 | `sentinel.quorum` | `2` | Failure-detection quorum; election also needs a majority |
-| `sentinel.masterName` | `mymaster` | Name used by Sentinel-aware clients |
+| `sentinel.masterName` | `""` (derive `<release>-master`) | Logical group name used by Sentinel-aware clients |
 | `sentinel.persistence.size` | `128Mi` | Storage requested for each Sentinel pod |
 | `*.persistence.storageClass` | `longhorn-storage-class-replicas-1` | Explicit single-storage-replica class |
 
@@ -68,6 +68,14 @@ A larger PVC does not increase the in-memory dataset capacity.
 Sentinel PVCs are always enabled. A default Sentinel deployment has six PVCs:
 three data pods and three Sentinels. The development override has five:
 two data pods and three Sentinels.
+
+The master name comes from the Helm release name, not a pod name. Release
+`redis-harbor` uses `redis-harbor-master`; release `redis` uses `redis-master`.
+An explicit `sentinel.masterName` overrides that default when needed.
+Clients must use the same group name. During a group-name change, coordinate
+client configuration with the rollout. Startup updates the group name in saved
+Sentinel records while retaining the selected primary, peer identities and
+election epochs; it does not reset the PVC state.
 
 ## Development override
 

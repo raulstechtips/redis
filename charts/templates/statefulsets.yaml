@@ -83,7 +83,7 @@ spec:
             - name: TLS_ENABLED
               value: {{ $root.Values.tls.enabled | quote }}
             - name: MASTER_NAME
-              value: {{ $root.Values.sentinel.masterName | quote }}
+              value: {{ include "redis.masterName" $root | quote }}
             {{- if eq $role "redis" }}
             - name: MAXMEMORY
               value: {{ $root.Values.redis.maxmemory | quote }}

@@ -14,10 +14,8 @@ state=/data/sentinel.conf
     printf 'requirepass %s\n' "$(config_quote "$REDISCLI_AUTH")"
     printf 'sentinel announce-ip %s\nsentinel announce-port 26379\n' "$POD_HOST"
     if [ -s "$state" ]; then
-        awk -v quorum="$SENTINEL_QUORUM" '
-            /^sentinel monitor / { $NF=quorum }
-            /^sentinel (myid|monitor|known-replica|known-sentinel|current-epoch|config-epoch|leader-epoch) / { print }
-        ' "$state"
+        awk -v master="$MASTER_NAME" -v quorum="$SENTINEL_QUORUM" \
+            -f /usr/local/lib/redis/sentinel-state.awk "$state"
     else
         printf 'sentinel monitor %s %s 6379 %s\n' "$MASTER_NAME" "$BOOTSTRAP_PRIMARY" "$SENTINEL_QUORUM"
     fi

@@ -93,7 +93,7 @@
       "properties": {
         "replicas": {"enum": [3, 5, 7]},
         "quorum": {"type": "integer", "minimum": 2},
-        "masterName": {"type": "string", "pattern": "^[a-zA-Z0-9_-]+$"},
+        "masterName": {"type": "string", "pattern": "^[a-zA-Z0-9_-]*$"},
         "downAfterMilliseconds": {"type": "integer", "minimum": 1000},
         "failoverTimeoutMilliseconds": {"type": "integer", "minimum": 1000},
         "persistence": {

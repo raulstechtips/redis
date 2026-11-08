@@ -4,7 +4,7 @@ Password Secret: {{ include "redis.secret" . }} (key {{ .Values.auth.passwordKey
 Redis endpoint: {{ include "redis.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:6379
 {{ else }}
 Sentinel endpoint: {{ include "redis.fullname" . }}-sentinel.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:26379
-Master name: {{ .Values.sentinel.masterName }}
+Master name: {{ include "redis.masterName" . }}
 Use a Sentinel-aware client. The Redis headless Service is discovery infrastructure,
 not a writable primary endpoint. It includes replicas.
 {{ end }}

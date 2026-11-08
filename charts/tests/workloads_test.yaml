@@ -121,3 +121,24 @@ tests:
             secret:
               secretName: redis-tls
               defaultMode: 288
+  - it: derives the same master group for Redis and Sentinel from the release name
+    release:
+      name: redis-harbor
+    set:
+      mode: sentinel
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MASTER_NAME
+            value: redis-harbor-master
+  - it: preserves an explicit master group override
+    set:
+      mode: sentinel
+      sentinel.masterName: existing-group
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MASTER_NAME
+            value: existing-group

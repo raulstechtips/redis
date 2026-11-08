@@ -32,11 +32,20 @@ if (load_password) 2>/dev/null; then
 fi
 printf 'PASS password validation\n'
 
+awk -v master=redis-harbor-master -v quorum=3 -f src/scripts/sentinel-state.awk \
+    tests/unit/fixtures/sentinel-state.conf > "$tmp/sentinel-state"
+cmp tests/unit/fixtures/sentinel-state.expected "$tmp/sentinel-state"
+awk -v master=redis-harbor-master -v quorum=3 -f src/scripts/sentinel-state.awk \
+    "$tmp/sentinel-state" > "$tmp/sentinel-state-again"
+cmp "$tmp/sentinel-state" "$tmp/sentinel-state-again"
+printf 'PASS Sentinel group rename preserves topology and election state\n'
+
 SENTINEL_HOSTS='s0 s1 s2'
 DATA_HOSTS='redis-0 redis-1 redis-2'
-MASTER_NAME=mymaster
+MASTER_NAME=redis-master
 SENTINEL_MAJORITY=2
 redis_cli() {
+    assert_equal "$MASTER_NAME" "$5"
     case "$1" in
         s0|s1) printf 'redis-1\n6379\n' ;;
         s2) printf 'redis-0\n6379\n' ;;

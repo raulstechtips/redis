@@ -31,6 +31,10 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | quote }}
 {{- default (printf "%s-tls" (include "redis.fullname" .)) .Values.tls.existingSecret -}}
 {{- end -}}
 
+{{- define "redis.masterName" -}}
+{{- default (printf "%s-master" .Release.Name) .Values.sentinel.masterName -}}
+{{- end -}}
+
 {{- define "redis.dataHosts" -}}
 {{- $hosts := list -}}
 {{- $root := . -}}
